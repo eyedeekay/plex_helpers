@@ -1,8 +1,19 @@
 
 dummy: plexsign.key
 
+include include.mk
+
+plex.mk:
+	./regenerate_plex.sh
+	echo 'include plex.mk' | tee -a include.mk
+
 clean:
-	rm -rf plexmediaserver plexmediaserver.deb plexmediaserver_$(shell wget -q -O - https://downloads.plex.tv/repo/deb/dists/public/main/binary-amd64/Packages.gz | gzip -d --to-stdout | head | grep Version | sed 's|Version: ||g')-initdmod-1_amd64.deb plex description-pak
+	rm -rf plexmediaserver \
+		plexmediaserver.deb \
+		plexmediaserver_$(shell wget -q -O - https://downloads.plex.tv/repo/deb/dists/public/main/binary-amd64/Packages.gz | gzip -d --to-stdout | head | grep Version | sed 's|Version: ||g')-initdmod-1_amd64.deb \
+		plex \
+		description-pak \
+		plex.mk
 
 clobber: clean
 	rm plexsign.key
@@ -26,9 +37,11 @@ plexmediaserver: plexmediaserver.deb
 	dpkg -x plexmediaserver.deb plexmediaserver
 
 get: plexmediaserver.deb plexmediaserver
-	rm plexmediaserver.deb
+	rm plexmediaserver.deb plex.mk
+	make plex.mk
 
-install:
+
+install: plex-install
 	install -m 744 bin/kill_plex.sh /usr/sbin/kill_plex.sh
 	install -m 744 bin/watch_plex.sh /usr/sbin/watch_plex.sh
 	install -m 755 init.d/plex /etc/init.d/plex
@@ -39,7 +52,6 @@ install:
 	#
 	install -D plexmediaserver/lib/systemd/system/plexmediaserver.service /lib/systemd/system/plexmediaserver.service
 	#
-	cp -r plexmediaserver/usr/lib/plexmediaserver/ /usr/lib/plexmediaserver/
 	#install -D plexmediaserver/lib/udev/rules.d/60-tvbutler-perms.rules /lib/udev/rules.d/60-tvbutler-perms.rules
 	install -D plexmediaserver/usr/share/applications/plexmediamanager.desktop /usr/share/applications/plexmediamanager.desktop
 	#
@@ -51,7 +63,7 @@ install:
 	install -D plexmediaserver/usr/share/pixmaps/plexmediamanager.png /usr/share/pixmaps/plexmediamanager.png
 	install -D plexmediaserver/usr/sbin/start_pms /usr/sbin/start_pms
 
-repack-deb:
+repack-deb: get
 	checkinstall --install=no \
 		--default \
 		--pkgname plexmediaserver \
